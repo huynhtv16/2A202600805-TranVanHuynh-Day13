@@ -1,14 +1,14 @@
-# Evidence Collection Sheet
+# Checklist bằng chứng chấm điểm
 
-## Required screenshots
-- Langfuse trace list with >= 10 traces
-- One full trace waterfall
-- JSON logs showing correlation_id
-- Log line with PII redaction
-- Dashboard with 6 panels
-- Alert rules with runbook link
+## Screenshot bắt buộc
+- Danh sách trace trên Langfuse có ít nhất 10 traces
+- Một trace waterfall đầy đủ
+- JSON log thể hiện `correlation_id`
+- Một dòng log cho thấy PII đã được redaction
+- Dashboard đủ 6 panels
+- Alert rules có kèm runbook link
 
-## Optional screenshots
-- Incident before/after fix
-- Cost comparison before/after optimization
-- Auto-instrumentation proof
+## Screenshot nên có thêm
+- Trạng thái incident trước và sau khi fix
+- So sánh chi phí trước và sau tối ưu
+- Bằng chứng auto-instrumentation nếu có sử dụng

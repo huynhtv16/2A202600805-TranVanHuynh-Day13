@@ -38,15 +38,26 @@ def percentile(values: list[int], p: int) -> float:
 
 
 def snapshot() -> dict:
+    total_errors = sum(ERRORS.values())
+    total_requests = TRAFFIC + total_errors
+    error_rate_pct = round((total_errors / total_requests) * 100, 2) if total_requests else 0.0
+    total_cost_usd = round(sum(REQUEST_COSTS), 4)
+
     return {
         "traffic": TRAFFIC,
         "latency_p50": percentile(REQUEST_LATENCIES, 50),
         "latency_p95": percentile(REQUEST_LATENCIES, 95),
         "latency_p99": percentile(REQUEST_LATENCIES, 99),
         "avg_cost_usd": round(mean(REQUEST_COSTS), 4) if REQUEST_COSTS else 0.0,
-        "total_cost_usd": round(sum(REQUEST_COSTS), 4),
+        "total_cost_usd": total_cost_usd,
         "tokens_in_total": sum(REQUEST_TOKENS_IN),
         "tokens_out_total": sum(REQUEST_TOKENS_OUT),
         "error_breakdown": dict(ERRORS),
         "quality_avg": round(mean(QUALITY_SCORES), 4) if QUALITY_SCORES else 0.0,
+        # Aliases used by alert_rules.yaml.
+        "latency_p95_ms": percentile(REQUEST_LATENCIES, 95),
+        "error_rate_pct": error_rate_pct,
+        "hourly_cost_usd": total_cost_usd,
+        "error_count": total_errors,
+        "total_requests": total_requests,
     }

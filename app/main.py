@@ -4,9 +4,11 @@ import os
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
+from dotenv import load_dotenv
 from structlog.contextvars import bind_contextvars
 
 from .agent import LabAgent
+from .alerts import evaluate_alerts
 from .incidents import disable, enable, status
 from .logging_config import configure_logging, get_logger
 from .metrics import record_error, snapshot
@@ -15,6 +17,7 @@ from .pii import hash_user_id, summarize_text
 from .schemas import ChatRequest, ChatResponse
 from .tracing import tracing_enabled
 
+load_dotenv()
 configure_logging()
 log = get_logger()
 app = FastAPI(title="Day 13 Observability Lab")
@@ -42,10 +45,20 @@ async def metrics() -> dict:
     return snapshot()
 
 
+@app.get("/alerts")
+async def alerts() -> dict:
+    return evaluate_alerts()
+
+
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: Request, body: ChatRequest) -> ChatResponse:
-    # TODO: Enrich logs with request context (user_id_hash, session_id, feature, model, env)
-    # bind_contextvars(...)
+    bind_contextvars(
+        user_id_hash=hash_user_id(body.user_id),
+        session_id=body.session_id,
+        feature=body.feature,
+        model=agent.model,
+        env=os.getenv("APP_ENV", "dev"),
+    )
     
     log.info(
         "request_received",
@@ -68,6 +81,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             cost_usd=result.cost_usd,
             payload={"answer_preview": summarize_text(result.answer)},
         )
+        evaluate_alerts()
         return ChatResponse(
             answer=result.answer,
             correlation_id=request.state.correlation_id,
@@ -86,6 +100,7 @@ async def chat(request: Request, body: ChatRequest) -> ChatResponse:
             error_type=error_type,
             payload={"detail": str(exc), "message_preview": summarize_text(body.message)},
         )
+        evaluate_alerts()
         raise HTTPException(status_code=500, detail=error_type) from exc
 
 
@@ -94,6 +109,7 @@ async def enable_incident(name: str) -> JSONResponse:
     try:
         enable(name)
         log.warning("incident_enabled", service="control", payload={"name": name})
+        evaluate_alerts()
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -104,6 +120,7 @@ async def disable_incident(name: str) -> JSONResponse:
     try:
         disable(name)
         log.warning("incident_disabled", service="control", payload={"name": name})
+        evaluate_alerts()
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
